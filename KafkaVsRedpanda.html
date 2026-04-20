@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>P10-T1 · Kafka vs Redpanda</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --card: #16161f;
+      --border: #2a2a3a;
+      --accent3: #4cc9f0;
+      --text: #f0f0f5;
+      --muted: #8888aa;
+      --kafka: #e63946;
+      --redpanda: #ff6b35;
+    }
+ 
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+ 
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+    }
+ 
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 9999; opacity: 0.4;
+    }
+ 
+    .grid-bg {
+      position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(230,57,70,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(230,57,70,0.04) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none; z-index: 0;
+    }
+ 
+    /* ambient orbs */
+    .orb {
+      position: fixed; border-radius: 50%;
+      filter: blur(100px); pointer-events: none; z-index: 0;
+    }
+    .orb1 {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(230,57,70,0.18) 0%, transparent 70%);
+      top: -150px; left: -120px;
+      animation: drift1 8s ease-in-out infinite alternate;
+    }
+    .orb2 {
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(255,107,53,0.14) 0%, transparent 70%);
+      bottom: -100px; right: -100px;
+      animation: drift2 10s ease-in-out infinite alternate;
+    }
+    @keyframes drift1 { to { transform: translate(60px, 40px); } }
+    @keyframes drift2 { to { transform: translate(-40px, -60px); } }
+ 
+    /* ── LAYOUT ── */
+    .page {
+      position: relative; z-index: 1;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      gap: 0;
+      text-align: center;
+    }
+ 
+    /* badge */
+    .badge {
+      display: inline-block;
+      background: linear-gradient(135deg, var(--kafka), var(--redpanda));
+      color: #fff;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.15em;
+      padding: 0.4rem 1rem;
+      border-radius: 2px;
+      margin-bottom: 1.2rem;
+      animation: fadeDown 0.6s ease both;
+    }
+ 
+    /* title */
+    .hero-title {
+      font-size: clamp(3.2rem, 8vw, 7rem);
+      font-weight: 800;
+      line-height: 1.0;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.3rem;
+      animation: fadeDown 0.7s ease 0.1s both;
+    }
+    .hero-title .kafka    { color: var(--kafka); }
+    .hero-title .vs       { color: var(--muted); font-size: 0.5em; vertical-align: middle; padding: 0 0.3em; }
+    .hero-title .redpanda { color: var(--redpanda); }
+ 
+    .hero-subtitle {
+      font-family: 'Space Mono', monospace;
+      font-size: clamp(0.65rem, 1.3vw, 0.9rem);
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      margin-bottom: 1.4rem;
+      animation: fadeDown 0.7s ease 0.2s both;
+    }
+ 
+    /* meta pills */
+    .meta-row {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 1.6rem;
+      animation: fadeDown 0.7s ease 0.3s both;
+    }
+    .meta-pill {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.45rem 1rem;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.68rem;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+    }
+    .meta-pill span { color: var(--text); }
+ 
+    /* buttons */
+    .cta-row {
+      display: flex;
+      gap: 0.9rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 2.8rem;
+      animation: fadeDown 0.7s ease 0.4s both;
+    }
+ 
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.72rem 1.4rem;
+      border-radius: 3px;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.74rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-decoration: none;
+      transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+      border: none; cursor: pointer;
+    }
+    .btn:hover { transform: translateY(-2px); opacity: 0.9; }
+ 
+    .btn-pdf {
+      background: linear-gradient(135deg, var(--kafka), var(--redpanda));
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(230,57,70,0.3);
+    }
+    .btn-pdf:hover { box-shadow: 0 8px 28px rgba(230,57,70,0.45); }
+ 
+    .btn-video {
+      background: rgba(76,201,240,0.1);
+      color: var(--accent3);
+      border: 1px solid rgba(76,201,240,0.3);
+    }
+    .btn-video:hover { background: rgba(76,201,240,0.18); border-color: var(--accent3); }
+ 
+    .btn-gh {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-gh:hover { border-color: var(--muted); }
+ 
+    .icon { width: 13px; height: 13px; fill: currentColor; flex-shrink: 0; }
+ 
+    /* divider */
+    .thin-rule {
+      width: min(700px, 90%);
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+      margin-bottom: 2.2rem;
+      animation: fadeDown 0.7s ease 0.45s both;
+    }
+ 
+    /* team label */
+    .section-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.85rem;
+      letter-spacing: 0.16em;
+      color: var(--kafka);
+      text-transform: uppercase;
+      font-weight: 700;
+      margin-bottom: 1.4rem;
+      animation: fadeDown 0.7s ease 0.5s both;
+    }
+ 
+    /* team grid */
+    .team-grid {
+      display: flex;
+      gap: 1.1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      animation: fadeDown 0.7s ease 0.6s both;
+    }
+ 
+    .team-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1.2rem 1rem;
+      width: 130px;
+      text-align: center;
+      transition: transform 0.25s, border-color 0.25s, box-shadow 0.25s;
+      position: relative; overflow: hidden;
+    }
+    .team-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, var(--kafka), var(--redpanda));
+      transform: scaleX(0); transition: transform 0.3s;
+    }
+    .team-card:hover::before { transform: scaleX(1); }
+    .team-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(230,57,70,0.3);
+      box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+    }
+ 
+    .avatar {
+      width: 62px; height: 62px;
+      border-radius: 50%;
+      margin: 0 auto 0.8rem;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.3rem; font-weight: 800; color: #fff;
+    }
+    .av1 { background: linear-gradient(135deg, #e63946, #c1121f); }
+    .av2 { background: linear-gradient(135deg, #ff6b35, #d62839); }
+    .av3 { background: linear-gradient(135deg, #4cc9f0, #4361ee); }
+    .av4 { background: linear-gradient(135deg, #7b2d8b, #e63946); }
+    .av5 { background: linear-gradient(135deg, #f72585, #7209b7); }
+ 
+    .team-name { font-size: 0.82rem; font-weight: 700; margin-bottom: 0.25rem; line-height: 1.25; }
+    .team-role {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.55rem; color: var(--muted); letter-spacing: 0.08em;
+    }
+ 
+    /* footer */
+    .foot {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      border-top: 1px solid var(--border);
+      padding: 0.65rem 2rem;
+      text-align: center;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.58rem; color: var(--muted); letter-spacing: 0.08em;
+      background: rgba(10,10,15,0.8); backdrop-filter: blur(8px);
+      z-index: 10;
+    }
+    .footer-accent {
+      background: linear-gradient(135deg, var(--kafka), var(--redpanda));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; font-weight: 700;
+    }
+ 
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+ 
+    @media (max-width: 600px) {
+      html, body { overflow: auto; }
+      .page { justify-content: flex-start; padding-top: 3rem; padding-bottom: 5rem; }
+      .team-grid { gap: 0.8rem; }
+      .team-card { width: 110px; }
+      .cta-row { flex-direction: column; align-items: center; }
+    }
+  </style>
+</head>
+<body>
+ 
+<div class="grid-bg"></div>
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+ 
+<div class="page">
+ 
+  <div class="badge">P10-T1 · TRANSACTION STREAMING</div>
+ 
+  <h1 class="hero-title">
+    <span class="kafka">Kafka</span>
+    <span class="vs">VS</span>
+    <span class="redpanda">Redpanda</span>
+  </h1>
+ 
+  <p class="hero-subtitle">TRANSACTION STREAMING · COMPARATIVE ANALYSIS</p>
+ 
+  <div class="meta-row">
+    <div class="meta-pill">Course&nbsp;<span>CS 4850</span></div>
+    <div class="meta-pill">Term&nbsp;<span>Spring 2026</span></div>
+    <div class="meta-pill">Section&nbsp;<span>01</span></div>
+    <div class="meta-pill">Instructor&nbsp;<span>Sharon Perry</span></div>
+  </div>
+ 
+  <div class="cta-row">
+    <a class="btn btn-pdf" href="10-T1-Kafka-STP-STR.pdf" target="_blank">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg>
+      Final Report (PDF)
+    </a>
+    <a class="btn btn-video" href="https://YOUR-VIDEO-LINK-HERE" target="_blank">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+      Presentation Video
+    </a>
+    <a class="btn btn-gh" href="https://github.com/YOUR-REPO-HERE" target="_blank">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.09-.745.083-.73.083-.73 1.205.085 1.84 1.236 1.84 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.418-1.305.762-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 21.795 24 17.295 24 12c0-6.63-5.37-12-12-12z"/></svg>
+      GitHub Repository
+    </a>
+  </div>
+ 
+  <div class="thin-rule"></div>
+ 
+  <p class="section-label">// The Team</p>
+ 
+  <div class="team-grid">
+    <div class="team-card">
+      <div class="avatar av1">JS</div>
+      <div class="team-name">Jacob Suda</div>
+      <div class="team-role">Developer</div>
+    </div>
+    <div class="team-card">
+      <div class="avatar av2">ES</div>
+      <div class="team-name">Elizabeth Serrano</div>
+      <div class="team-role">Documentation</div>
+    </div>
+    <div class="team-card">
+      <div class="avatar av3">RD</div>
+      <div class="team-name">Rishi Desai</div>
+      <div class="team-role">Developer · Docs</div>
+    </div>
+    <div class="team-card">
+      <div class="avatar av4">MW</div>
+      <div class="team-name">Max Wender</div>
+      <div class="team-role">Developer · Docs</div>
+    </div>
+    <div class="team-card">
+      <div class="avatar av5">BT</div>
+      <div class="team-name">Bao Tran Ho</div>
+      <div class="team-role">Developer · Docs</div>
+    </div>
+  </div>
+ 
+</div>
+ 
+<footer class="foot">
+  <span class="footer-accent">P10-T1</span> &nbsp;·&nbsp; Kafka vs Redpanda: Transaction Streaming &nbsp;·&nbsp; CS 4850 &nbsp;·&nbsp; Spring 2026 &nbsp;·&nbsp; Instructor: Sharon Perry
+</footer>
+ 
+</body>
+</html>
